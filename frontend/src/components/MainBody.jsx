@@ -37,14 +37,14 @@ const MainBody = () => {
         setLoadingBooks(false);
       })
       .catch((err) => {
-        console.error("Failed to fetch books", err);
+        showSnackbar(`Failed to Fetch Books`);
         setLoadingBooks(false);
       });
   };
 
   const filteredBooks = books.filter((book) =>
     `${book.title} ${book.author}`.toLowerCase().includes(search.toLowerCase())
-  );
+  ); 
 
   const handleSave = (bookData) => {
     bookAPI
@@ -52,8 +52,9 @@ const MainBody = () => {
       .then(() => {
         fetchBooks();
         setOpenDialog(false);
+        showSnackbar(`Book Created`, "success");
       })
-      .catch((err) => console.error("Failed to create book", err));
+      .catch((err) => showSnackbar(`Failed to Create Books`, "error"));
   };
 
   return (

@@ -4,6 +4,7 @@ import os
 from auth.auth_helper import require_auth
 from database.database import db
 from models.books import Book
+import datetime
 
 
 app = Flask(__name__, static_folder='static')
@@ -70,12 +71,12 @@ def create_book(user_info):
         required_fields = ['title', 'author']
         for field in required_fields:
             if not data.get(field):
-                return jsonify({'success': False, 'error': f'Field "{field}" is required'}), 400
+                 return jsonify({'success': False, 'error': f'Field "{field}" is required'}), 400
 
         book = Book(
             title=data['title'],
             author=data['author'],
-            published_date=data.get('published_date'),
+            published_date=datetime.datetime.strptime(data.get('published_date'), "%Y-%m-%d").date(),
             isbn=data.get('isbn'),
             pages=data.get('pages'),
             description=data.get('description')
