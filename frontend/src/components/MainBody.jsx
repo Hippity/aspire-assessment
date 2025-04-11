@@ -8,30 +8,53 @@ import {
   Typography,
   CircularProgress,
   Box,
+  Button,
 } from "@mui/material";
 import { bookAPI } from "../services/api";
+import { useSnackbar } from "../contexts/SnackbarContext";
+import { useAuth } from "../contexts/AuthContext";
+import BookDialog from "./BookDialog";
 
 const MainBody = () => {
   const [books, setBooks] = useState([]);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loadingBooks, setLoadingBooks] = useState(true);
+  const [openDialog, setOpenDialog] = useState(false);
+
+  const { showSnackbar } = useSnackbar();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
+    fetchBooks();
+  }, []);
+
+  const fetchBooks = () => {
+    setLoadingBooks(true);
     bookAPI
       .getAll()
       .then((res) => {
         setBooks(res.data.data || []);
-        setLoading(false);
+        setLoadingBooks(false);
       })
       .catch((err) => {
         console.error("Failed to fetch books", err);
-        setLoading(false);
+        setLoadingBooks(false);
       });
-  }, []);
+  };
 
   const filteredBooks = books.filter((book) =>
     `${book.title} ${book.author}`.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleSave = (bookData) => {
+    bookAPI
+      .create(bookData)
+      .then(() => {
+        fetchBooks();
+        setOpenDialog(false);
+      })
+      .catch((err) => console.error("Failed to create book", err));
+  };
 
   return (
     <Container maxWidth="md" sx={{ mt: 4 }}>
@@ -44,7 +67,15 @@ const MainBody = () => {
         sx={{ mb: 4 }}
       />
 
-      {loading ? (
+      {user && (
+        <Box display="flex" justifyContent="flex-end" mb={2}>
+          <Button variant="contained" onClick={() => setOpenDialog(true)}>
+            Add Book
+          </Button>
+        </Box>
+      )}
+
+      {loadingBooks ? (
         <Box display="flex" justifyContent="center" mt={4}>
           <CircularProgress />
         </Box>
@@ -68,9 +99,7 @@ const MainBody = () => {
                     </Typography>
                   )}
                   {book.pages && (
-                    <Typography variant="body2">
-                      Pages: {book.pages}
-                    </Typography>
+                    <Typography variant="body2">Pages: {book.pages}</Typography>
                   )}
                 </CardContent>
               </Card>
@@ -78,6 +107,12 @@ const MainBody = () => {
           ))}
         </Grid>
       )}
+
+      <BookDialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        onSave={handleSave}
+      />
     </Container>
   );
 };
