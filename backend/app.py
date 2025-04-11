@@ -98,9 +98,12 @@ def update_book(book_id, user_info):
         if not book:
             return jsonify({'success': False, 'error': 'Book not found'}), 404
 
-        for field in ['title', 'author', 'published_date', 'isbn', 'pages', 'description']:
+        for field in ['title', 'author', 'isbn', 'pages', 'description']:
             if field in data:
                 setattr(book, field, data[field])
+        
+        if 'published_date' in data:
+            book.published_date = datetime.datetime.strptime(data['published_date'], "%Y-%m-%d").date()
 
         db.session.commit()
         return jsonify({'success': True, 'data': book.to_dict(), 'message': 'Book updated successfully'})
