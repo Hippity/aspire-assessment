@@ -14,12 +14,15 @@ import { bookAPI } from "../services/api";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { useAuth } from "../contexts/AuthContext";
 import BookDialog from "./BookDialog";
+import BookDetailsDialog from "./BookDetailsDialog";
 
 const MainBody = () => {
   const [books, setBooks] = useState([]);
   const [search, setSearch] = useState("");
   const [loadingBooks, setLoadingBooks] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
+  const [openBookDetails, setOpenBookDetails] = useState(false);
+  const [selectedBook, setSelectedBook] = useState();
 
   const { showSnackbar } = useSnackbar();
   const { user, loading } = useAuth();
@@ -27,6 +30,12 @@ const MainBody = () => {
   useEffect(() => {
     fetchBooks();
   }, []);
+
+  const handleViewBook = (book) => {
+    setSelectedBook(book);
+    setOpenBookDetails(true);
+  };
+  
 
   const fetchBooks = () => {
     setLoadingBooks(true);
@@ -44,17 +53,28 @@ const MainBody = () => {
 
   const filteredBooks = books.filter((book) =>
     `${book.title} ${book.author}`.toLowerCase().includes(search.toLowerCase())
-  ); 
+  );
 
   const handleSave = (bookData) => {
-    bookAPI
-      .create(bookData)
+    const isEditing = !!selectedBook;
+
+    const action = isEditing
+      ? bookAPI.update(selectedBook.id, bookData)
+      : bookAPI.create(bookData);
+
+    action
       .then(() => {
         fetchBooks();
         setOpenDialog(false);
-        showSnackbar(`Book Created`, "success");
+        setSelectedBook(null); // reset after editing
+        showSnackbar(`Book ${isEditing ? "Updated" : "Created"}`, "success");
       })
-      .catch((err) => showSnackbar(`Failed to Create Books`, "error"));
+      .catch((err) =>
+        showSnackbar(
+          `Failed to ${isEditing ? "Update" : "Create"} Book`,
+          "error"
+        )
+      );
   };
 
   return (
@@ -88,7 +108,7 @@ const MainBody = () => {
         <Grid container spacing={3}>
           {filteredBooks.map((book) => (
             <Grid item xs={12} sm={6} md={4} key={book.id}>
-              <Card>
+              <Card onClick={() => handleViewBook(book)} sx={{ cursor: "pointer" }}>
                 <CardContent>
                   <Typography variant="h6">{book.title}</Typography>
                   <Typography variant="subtitle2" color="text.secondary">
@@ -109,10 +129,32 @@ const MainBody = () => {
         </Grid>
       )}
 
+      <BookDetailsDialog
+        open={openBookDetails}
+        onClose={() => setOpenBookDetails(false)}
+        book={selectedBook}
+        onEdit={(book) => {
+          setOpenDialog(true);
+          setSelectedBook(book);
+          setOpenBookDetails(false);
+        }}
+        onDelete={(id) => {
+          bookAPI
+            .delete(id)
+            .then(() => {
+              fetchBooks();
+              setOpenBookDetails(false);
+              showSnackbar(`Book deleted`)
+            })
+            .catch((err) => showSnackbar(`Failed to Delete Book`));
+        }}
+      />
+
       <BookDialog
         open={openDialog}
         onClose={() => setOpenDialog(false)}
         onSave={handleSave}
+        initialData={selectedBook}
       />
     </Container>
   );
