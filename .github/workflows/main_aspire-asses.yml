@@ -2,7 +2,7 @@
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 # More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
 
-name: Build and deploy Python app to Azure Web App - aspire-asses
+name: Build and deploy Python app to Azure Web App - aspire
 
 on:
   push:
@@ -22,18 +22,58 @@ jobs:
       - name: Set up Python version
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: "3.12"
 
       - name: Create and start virtual environment
         run: |
           python -m venv venv
           source venv/bin/activate
-      
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-        
-      # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # Setup Node.js for React build
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      # Install and build React app
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build React application
+        run: |
+          cd frontend
+          npm run build
+
+      # Move built React files to Flask static directory and copy services directory
+      - name: Setup Flask to serve React
+        run: |
+          mkdir -p static
+          cp -r frontend/dist/* static/
+          cp backend/app.py .
+          # Copy the auth directory and its contents
+          mkdir -p auth
+          cp -r backend/auth/* auth/
+          # Copy the database directory and its contents
+          mkdir -p database
+          cp -r backend/database/* database/
+          # Copy the models directory and its contents
+          mkdir -p models
+          cp -r backend/models/* models/
+
+      # Create startup command for Azure
+      - name: Create startup command
+        run: |
+          echo "gunicorn --bind=0.0.0.0:8000 app:app" > startup.sh
+          chmod +x startup.sh
+
+      # Zip everything for deployment
       - name: Zip artifact for deployment
         run: zip release.zip ./* -r
 
@@ -44,7 +84,8 @@ jobs:
           path: |
             release.zip
             !venv/
-
+            !frontend/node_modules/
+            
   deploy:
     runs-on: ubuntu-latest
     needs: build
